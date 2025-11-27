@@ -1,434 +1,273 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metabolismo do Metanol 3D</title>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: white; }
-        #canvas-container { width: 100vw; height: 100vh; display: block; }
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, RotateCcw, AlertTriangle, Eye, Activity, Skull } from 'lucide-react';
+
+// Componente principal
+export default function MetanolMetabolismo() {
+  const [step, setStep] = useState(0);
+
+  // Dados das etapas
+  const steps = [
+    {
+      title: "Visão Geral",
+      description: "O metanol é um álcool simples, mas extremamente tóxico. Esta demonstração visualiza seu trajeto mortal através do corpo humano.",
+      chemical: "CH₃OH",
+      status: "Início",
+      color: "text-gray-600"
+    },
+    {
+      title: "1. Ingestão",
+      description: "O metanol é ingerido e desce pelo esôfago até o estômago. Ele é rapidamente absorvido pelo trato gastrointestinal. Em sua forma pura, causa embriaguez similar ao etanol, mas sem toxicidade imediata grave.",
+      chemical: "CH₃OH (Metanol)",
+      status: "Absorção Gástrica",
+      color: "text-blue-600"
+    },
+    {
+      title: "2. Transporte ao Fígado",
+      description: "Do estômago, o metanol entra na corrente sanguínea e é transportado diretamente ao fígado via veia porta. É aqui que o processo perigoso começa.",
+      chemical: "Transporte",
+      status: "Circulação Portal",
+      color: "text-blue-600"
+    },
+    {
+      title: "3. Biotransformação Hepática",
+      description: "No fígado, a enzima Álcool Desidrogenase (ADH) converte metanol em Formaldeído. Rapidamente, este vira Ácido Fórmico. O acúmulo de ácido causa acidose metabólica severa.",
+      chemical: "CH₃OH → HCHO → HCOOH",
+      status: "Metabolização Tóxica",
+      color: "text-yellow-600"
+    },
+    {
+      title: "4. Dano Neurológico e Cegueira",
+      description: "O Ácido Fórmico viaja pelo sangue e ataca especificamente o nervo óptico e a retina, causando edema, morte celular e cegueira permanente. Também pode levar ao coma.",
+      chemical: "HCOOH (Ácido Fórmico)",
+      status: "Toxicidade Ocular",
+      color: "text-red-600"
+    }
+  ];
+
+  const handleNext = () => {
+    if (step < steps.length - 1) setStep(step + 1);
+  };
+
+  const handleReset = () => {
+    setStep(0);
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4 font-sans text-gray-800">
+      
+      {/* Header */}
+      <header className="mb-6 text-center">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Toxicocinética do Metanol</h1>
+        <p className="text-gray-600 max-w-lg mx-auto">Demonstração interativa do caminho do metanol e sua conversão em metabólitos tóxicos.</p>
+      </header>
+
+      {/* Main Container */}
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden w-full max-w-4xl flex flex-col md:flex-row border border-gray-100">
         
-        #ui-layer {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 300px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            pointer-events: none; /* Let clicks pass through to canvas if needed */
-            border-left: 5px solid #00d2ff;
-            transition: border-color 0.5s;
-        }
+        {/* Left: Interactive Graphic */}
+        <div className="relative w-full md:w-3/5 bg-blue-50/30 h-[500px] flex items-center justify-center border-r border-gray-100 overflow-hidden">
+          
+          {/* Background Grid Pattern */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage: 'radial-gradient(#444 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
 
-        h1 { margin: 0 0 10px 0; font-size: 1.2rem; }
-        p { font-size: 0.9rem; line-height: 1.4; color: #ccc; }
-        
-        .status-box {
-            margin-top: 15px;
-            padding: 10px;
-            background: #333;
-            border-radius: 5px;
-        }
+          {/* SVG Anatomy */}
+          <svg viewBox="0 0 400 500" className="w-full h-full max-w-md drop-shadow-lg">
+            
+            {/* Connections (Veins/Arteries) */}
+            {/* Esophagus */}
+            <path d="M 200 80 L 200 180" stroke="#fca5a5" strokeWidth="12" fill="none" strokeLinecap="round" />
+            
+            {/* Bloodstream: Stomach to Liver */}
+            <path d="M 220 230 Q 260 230 270 260" stroke="#e5e7eb" strokeWidth="4" strokeDasharray="5,5" fill="none" className={step >= 2 ? "stroke-red-300 transition-colors duration-1000" : ""} />
+            
+            {/* Bloodstream: Liver to Head */}
+            <path d="M 280 260 Q 320 150 200 120" stroke="#e5e7eb" strokeWidth="4" strokeDasharray="5,5" fill="none" className={step >= 4 ? "stroke-red-400 transition-colors duration-1000" : ""} />
 
-        .chemical { font-weight: bold; font-family: monospace; font-size: 1.1em; color: #fff; }
-        .danger { color: #ff4444; }
-        .safe { color: #00d2ff; }
-        .transform { color: #ffff00; }
+            {/* ORGANS */}
 
-        #controls {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-        }
+            {/* Head / Brain / Eyes Area */}
+            <g className={`transition-opacity duration-1000 ${step === 4 ? 'opacity-100' : 'opacity-80'}`}>
+              <circle cx="200" cy="80" r="40" fill={step === 4 ? "#d1d5db" : "#f3f4f6"} stroke="#9ca3af" strokeWidth="2" />
+              {/* Eyes */}
+              <circle cx="185" cy="75" r="8" fill="white" stroke="#333" />
+              <circle cx="215" cy="75" r="8" fill="white" stroke="#333" />
+              {/* Pupils - Dilated/Damaged in step 4 */}
+              <circle cx="185" cy="75" r={step === 4 ? "6" : "3"} fill={step === 4 ? "#111" : "#333"} className="transition-all duration-1000" />
+              <circle cx="215" cy="75" r={step === 4 ? "6" : "3"} fill={step === 4 ? "#111" : "#333"} className="transition-all duration-1000" />
+              
+              {step === 4 && (
+                 <g className="animate-pulse">
+                   <path d="M 175 65 L 195 85" stroke="red" strokeWidth="2" opacity="0.6"/>
+                   <path d="M 195 65 L 175 85" stroke="red" strokeWidth="2" opacity="0.6"/>
+                   <path d="M 205 65 L 225 85" stroke="red" strokeWidth="2" opacity="0.6"/>
+                   <path d="M 225 65 L 205 85" stroke="red" strokeWidth="2" opacity="0.6"/>
+                 </g>
+              )}
+            </g>
 
-        button {
-            background: #00d2ff;
-            border: none;
-            padding: 12px 24px;
-            color: #000;
-            font-weight: bold;
-            font-size: 1rem;
-            border-radius: 25px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4);
-            transition: all 0.3s;
-        }
+            {/* Stomach */}
+            <g transform="translate(160, 180)">
+               <path 
+                 d="M 40 0 C 40 0 20 50 0 60 C -30 75 -20 110 10 120 C 50 130 90 100 100 70 L 60 0 Z" 
+                 fill="#fb7185" 
+                 stroke="#e11d48" 
+                 strokeWidth="3"
+                 className={`transition-transform duration-500 ${step === 1 ? 'scale-105' : 'scale-100'}`}
+               />
+               <text x="30" y="80" fill="white" fontSize="12" fontWeight="bold" opacity="0.8">Estômago</text>
+            </g>
 
-        button:hover { transform: scale(1.05); background: #fff; }
-        button:disabled { background: #555; color: #888; cursor: not-allowed; transform: none; box-shadow: none; }
+            {/* Liver */}
+            <g transform="translate(230, 240)">
+              <path 
+                d="M 0 0 C 50 -20 100 0 120 40 C 130 80 50 100 20 80 C 0 60 -10 20 0 0 Z" 
+                fill="#ea580c" 
+                stroke="#c2410c" 
+                strokeWidth="3"
+                className={`transition-all duration-500 ${step === 3 ? 'filter drop-shadow-lg saturate-150 scale-105' : 'scale-100'}`}
+              />
+              <text x="40" y="50" fill="white" fontSize="12" fontWeight="bold" opacity="0.9">Fígado</text>
+            </g>
 
-        /* Label styles for 3D objects */
-        .label {
-            position: absolute;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            pointer-events: none;
-            opacity: 0.8;
-        }
-    </style>
-    <!-- Load Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-</head>
-<body>
+            {/* PARTICLES (Methanol/Metabolites) */}
+            
+            {/* Step 1: Ingestion Particles (Mouth to Stomach) */}
+            {step === 1 && (
+              <g>
+                <circle cx="200" cy="100" r="5" fill="#3b82f6" opacity="0.8">
+                  <animate attributeName="cy" from="100" to="220" dur="1.5s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="1;0" dur="1.5s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="200" cy="120" r="5" fill="#3b82f6" opacity="0.8">
+                  <animate attributeName="cy" from="120" to="220" dur="1.5s" begin="0.5s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="1;0" dur="1.5s" begin="0.5s" repeatCount="indefinite" />
+                </circle>
+              </g>
+            )}
 
-    <div id="ui-layer">
-        <h1>Caminho do Metanol</h1>
-        <div id="info-text">
-            <p>O metanol é absorvido rapidamente. O perigo real não é o álcool em si, mas o que o fígado faz com ele.</p>
+            {/* Step 2: Absorption (Stomach to Liver) */}
+            {step === 2 && (
+              <g>
+                 {[...Array(5)].map((_, i) => (
+                    <circle key={i} r="4" fill="#3b82f6">
+                      <animateMotion 
+                        dur={`${1.5 + i * 0.2}s`} 
+                        repeatCount="indefinite"
+                        path="M 200 240 Q 240 240 260 270"
+                      />
+                    </circle>
+                 ))}
+              </g>
+            )}
+
+            {/* Step 3: Biotransformation (Inside Liver - Changing Color) */}
+            {step === 3 && (
+               <g>
+                 {/* Blue fading out */}
+                 <circle cx="260" cy="270" r="6" fill="#3b82f6">
+                   <animate attributeName="fill" values="#3b82f6;#22c55e;#16a34a" dur="2s" repeatCount="indefinite" />
+                   <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" />
+                 </circle>
+                 <text x="260" y="310" fontSize="10" fill="#166534" fontWeight="bold" textAnchor="middle">
+                   ADH / ALDH
+                 </text>
+                 <text x="260" y="325" fontSize="10" fill="#dc2626" fontWeight="bold" textAnchor="middle">
+                   Toxinas
+                 </text>
+               </g>
+            )}
+
+            {/* Step 4: Toxicity (Liver to Eyes - Green/Acid Particles) */}
+            {step === 4 && (
+              <g>
+                {[...Array(6)].map((_, i) => (
+                    <circle key={i} r="4" fill="#16a34a" stroke="#fff" strokeWidth="1">
+                      <animateMotion 
+                        dur={`${2 + i * 0.3}s`} 
+                        repeatCount="indefinite"
+                        path="M 280 260 Q 320 150 200 80"
+                      />
+                    </circle>
+                 ))}
+              </g>
+            )}
+
+          </svg>
+          
+          {/* Labels Overlay */}
+          <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur px-3 py-1 rounded-lg text-xs font-semibold text-blue-800 border border-blue-200">
+             Partícula Azul: Metanol
+          </div>
+          {(step >= 3) && (
+            <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur px-3 py-1 rounded-lg text-xs font-semibold text-green-800 border border-green-200">
+               Partícula Verde: Ácido Fórmico
+            </div>
+          )}
+
         </div>
-        <div class="status-box">
-            <div>Fase: <span id="phase-display" class="safe">Aguardando Ingestão</span></div>
-            <div>Substância Atual: <span id="chem-display" class="chemical">CH₃OH (Metanol)</span></div>
+
+        {/* Right: Info & Controls */}
+        <div className="w-full md:w-2/5 p-8 flex flex-col justify-between bg-white">
+          
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="bg-gray-100 text-gray-500 font-bold py-1 px-3 rounded-full text-xs uppercase tracking-wide">
+                Etapa {step} de {steps.length - 1}
+              </span>
+              <span className={`text-xs font-bold px-2 py-1 rounded ${steps[step].color.replace('text', 'bg').replace('600', '100')} ${steps[step].color}`}>
+                {steps[step].status}
+              </span>
+            </div>
+
+            <h2 className={`text-2xl font-bold mb-4 ${steps[step].color}`}>
+              {steps[step].title}
+            </h2>
+
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+              <p className="text-gray-700 leading-relaxed">
+                {steps[step].description}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+               <Activity className="w-5 h-5 text-slate-400" />
+               <div>
+                 <p className="text-xs text-slate-500 uppercase font-bold">Reação Química / Agente</p>
+                 <p className="font-mono text-slate-800 font-bold">{steps[step].chemical}</p>
+               </div>
+            </div>
+
+            {step === 4 && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg flex gap-3 animate-in fade-in slide-in-from-bottom-4">
+                <Skull className="w-6 h-6 text-red-500 shrink-0" />
+                <p className="text-sm text-red-700">
+                  <strong>Alerta Clínico:</strong> O ácido fórmico inibe a citocromo c oxidase nas mitocôndrias, levando à hipóxia histotóxica e morte celular no nervo óptico.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 flex gap-3">
+             {step < steps.length - 1 ? (
+               <button 
+                 onClick={handleNext}
+                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 active:scale-95"
+               >
+                 Avançar <ChevronRight size={20} />
+               </button>
+             ) : (
+               <button 
+                 onClick={handleReset}
+                 className="flex-1 bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95"
+               >
+                 Reiniciar <RotateCcw size={20} />
+               </button>
+             )}
+          </div>
+
         </div>
+      </div>
+
     </div>
-
-    <div id="controls">
-        <button id="start-btn" onclick="startSimulation()">Ingerir Metanol</button>
-    </div>
-
-    <div id="canvas-container"></div>
-
-    <script>
-        // --- Váriaveis Globais ---
-        let scene, camera, renderer;
-        let stomach, liver, esophagus, opticNerve, molecule;
-        let textLabels = [];
-        let animationActive = false;
-        let progress = 0;
-        let speed = 0.002;
-        let pathCurve;
-        
-        // Elementos UI
-        const uiPhase = document.getElementById('phase-display');
-        const uiChem = document.getElementById('chem-display');
-        const uiInfo = document.getElementById('info-text');
-        const uiPanel = document.getElementById('ui-layer');
-        const startBtn = document.getElementById('start-btn');
-
-        // Configuração Inicial
-        function init() {
-            const container = document.getElementById('canvas-container');
-
-            // Cena
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111111);
-            scene.fog = new THREE.Fog(0x111111, 20, 60);
-
-            // Câmera
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 5, 25);
-
-            // Renderizador
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            container.appendChild(renderer.domElement);
-
-            // Luzes
-            const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
-            scene.add(ambientLight);
-
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-            dirLight.position.set(5, 10, 7);
-            dirLight.castShadow = true;
-            scene.add(dirLight);
-
-            const pointLight = new THREE.PointLight(0xffaa00, 0.5, 20);
-            pointLight.position.set(-2, 2, 2);
-            scene.add(pointLight);
-
-            // Criar Anatomia
-            createAnatomy();
-
-            // Criar Molécula (Metanol)
-            createMolecule();
-
-            // Setup da Animação Loop
-            window.addEventListener('resize', onWindowResize);
-            animate();
-        }
-
-        function createAnatomy() {
-            // Material Base
-            const organMaterial = new THREE.MeshPhongMaterial({ 
-                color: 0xcc5555, 
-                shininess: 30,
-                flatShading: false
-            });
-
-            // 1. Esôfago (Tubo vertical)
-            const esophagusGeo = new THREE.CylinderGeometry(0.8, 0.8, 8, 16);
-            esophagus = new THREE.Mesh(esophagusGeo, new THREE.MeshPhongMaterial({ color: 0xaa4444 }));
-            esophagus.position.set(-2, 8, 0);
-            scene.add(esophagus);
-            createLabel("Esôfago", -4, 9, 0);
-
-            // 2. Estômago (Forma orgânica composta)
-            stomach = new THREE.Group();
-            
-            const stomachMainGeo = new THREE.SphereGeometry(2.5, 32, 32);
-            // Deformar para parecer um saco
-            stomachMainGeo.scale(1, 1.4, 0.8); 
-            const stomachMain = new THREE.Mesh(stomachMainGeo, new THREE.MeshPhongMaterial({ color: 0xd46a6a }));
-            stomachMain.position.set(0, -1, 0);
-            stomachMain.rotation.z = 0.3;
-            
-            const stomachTopGeo = new THREE.SphereGeometry(1.5, 32, 32);
-            const stomachTop = new THREE.Mesh(stomachTopGeo, new THREE.MeshPhongMaterial({ color: 0xd46a6a }));
-            stomachTop.position.set(0.5, 1.5, 0);
-
-            stomach.add(stomachMain);
-            stomach.add(stomachTop);
-            stomach.position.set(-2.5, 2, 0); // Posicionar abaixo do esôfago
-            scene.add(stomach);
-            createLabel("Estômago", -5, 2, 0);
-
-            // 3. Fígado (Triângulo arredondado grande à direita anatômica)
-            // No 3D, direita anatômica é esquerda da tela se olhando de frente, mas vamos posicionar visualmente à direita do estômago
-            liver = new THREE.Group();
-            const liverGeo = new THREE.DodecahedronGeometry(3.5, 1); // Low poly smooth look
-            // Achatar e esticar
-            liverGeo.scale(1.4, 0.8, 0.6);
-            
-            const liverMesh = new THREE.Mesh(liverGeo, new THREE.MeshStandardMaterial({ 
-                color: 0x8b0000, // Vermelho escuro/marrom
-                roughness: 0.4 
-            }));
-            
-            liver.add(liverMesh);
-            liver.position.set(3, 4, 1);
-            scene.add(liver);
-            createLabel("Fígado (Metabolismo)", 3, 7, 1);
-
-            // 4. Conexão Estômago -> Fígado (Veia Porta esquemática)
-            const veinGeo = new THREE.TubeGeometry(
-                new THREE.CatmullRomCurve3([
-                    new THREE.Vector3(-1.5, 2, 0),
-                    new THREE.Vector3(0, 3, 0),
-                    new THREE.Vector3(1.5, 4, 0.5)
-                ]), 20, 0.3, 8, false
-            );
-            const vein = new THREE.Mesh(veinGeo, new THREE.MeshPhongMaterial({ color: 0x3300aa })); // Veia azulada
-            scene.add(vein);
-
-            // 5. Nervo Óptico (O alvo do dano) - No topo da tela, simbólico
-            opticNerve = new THREE.Group();
-            const nerveGeo = new THREE.CylinderGeometry(0.2, 0.2, 8, 8);
-            nerveGeo.rotateZ(Math.PI / 2);
-            
-            // Dois olhos simbólicos
-            const eyeGeo = new THREE.SphereGeometry(1, 16, 16);
-            const eyeMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
-            const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-            const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-            eyeL.position.set(-6, 0, 0);
-            eyeR.position.set(6, 0, 0);
-
-            // Nervos conectando
-            const nerveL = new THREE.Mesh(nerveGeo, new THREE.MeshPhongMaterial({ color: 0xdddddd }));
-            nerveL.position.set(-3, 0, -1);
-            nerveL.rotation.z = -0.2;
-            
-            const nerveR = new THREE.Mesh(nerveGeo, new THREE.MeshPhongMaterial({ color: 0xdddddd }));
-            nerveR.position.set(3, 0, -1);
-            nerveR.rotation.z = 0.2;
-
-            opticNerve.add(eyeL);
-            opticNerve.add(eyeR);
-            opticNerve.add(nerveL);
-            opticNerve.add(nerveR);
-            
-            opticNerve.position.set(0, 12, -2); // Bem acima
-            scene.add(opticNerve);
-            createLabel("Sistema Nervoso / Olhos", 0, 14, -2);
-        }
-
-        function createMolecule() {
-            // Molécula de Metanol (Simbolizada por uma esfera brilhante)
-            const geometry = new THREE.SphereGeometry(0.4, 16, 16);
-            const material = new THREE.MeshPhongMaterial({ 
-                color: 0x00ffff, // Começa ciano (álcool)
-                emissive: 0x004444
-            });
-            molecule = new THREE.Mesh(geometry, material);
-            scene.add(molecule);
-            
-            // Definir o caminho (Path)
-            // 1. Boca/Esofago -> 2. Estômago -> 3. Figado -> 4. Nervo
-            pathCurve = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-2, 13, 0), // Entrada
-                new THREE.Vector3(-2, 8, 0),  // Esôfago
-                new THREE.Vector3(-2.5, 2, 0), // Estômago
-                new THREE.Vector3(0, 3, 0),    // Transição
-                new THREE.Vector3(3, 4, 1),    // Fígado (Centro)
-                new THREE.Vector3(3, 4, 1),    // Pausa no fígado (ponto duplicado para desacelerar curvas)
-                new THREE.Vector3(0, 8, 0),    // Subindo pela corrente sanguinea
-                new THREE.Vector3(0, 12, -1)   // Nervo Óptico
-            ]);
-
-            resetMolecule();
-        }
-
-        function resetMolecule() {
-            progress = 0;
-            const startPos = pathCurve.getPoint(0);
-            molecule.position.copy(startPos);
-            molecule.material.color.setHex(0x00ffff);
-            molecule.material.emissive.setHex(0x004444);
-            molecule.visible = false;
-            
-            // Reset nerves
-            opticNerve.children.forEach(child => {
-                if(child.geometry.type === 'CylinderGeometry') child.material.color.setHex(0xdddddd); // volta a ser branco
-                if(child.geometry.type === 'SphereGeometry') child.material.color.setHex(0xffffff);
-            });
-
-            // Reset UI
-            uiPhase.innerText = "Aguardando Ingestão";
-            uiPhase.className = "safe";
-            uiChem.innerText = "CH₃OH (Metanol)";
-            uiPanel.style.borderLeftColor = "#00d2ff";
-            uiInfo.innerHTML = "<p>O metanol é absorvido rapidamente. O perigo real não é o álcool em si, mas o que o fígado faz com ele.</p>";
-            startBtn.disabled = false;
-            startBtn.innerText = "Ingerir Metanol";
-        }
-
-        function startSimulation() {
-            if(animationActive) return;
-            resetMolecule();
-            molecule.visible = true;
-            animationActive = true;
-            startBtn.disabled = true;
-            startBtn.innerText = "Simulando...";
-        }
-
-        function updateSimulation() {
-            if (!animationActive) return;
-
-            progress += speed;
-            
-            if (progress >= 1) {
-                progress = 1;
-                animationActive = false;
-                startBtn.disabled = false;
-                startBtn.innerText = "Reiniciar Simulação";
-                return;
-            }
-
-            // Mover molécula
-            const position = pathCurve.getPoint(progress);
-            molecule.position.copy(position);
-
-            // --- Lógica de Fases Baseada no Progresso (0.0 a 1.0) ---
-
-            // Fase 1: Estômago (0.0 a 0.35)
-            if (progress < 0.35) {
-                uiPhase.innerText = "Absorção Gástrica";
-                uiPhase.className = "safe";
-                uiChem.innerText = "CH₃OH (Metanol)";
-                uiPanel.style.borderLeftColor = "#00d2ff";
-                molecule.material.color.setHex(0x00ffff);
-            } 
-            // Fase 2: Fígado (0.35 a 0.65) - A Biotransformação
-            else if (progress >= 0.35 && progress < 0.65) {
-                uiPhase.innerText = "Metabolização Hepática";
-                uiPhase.className = "transform";
-                uiPanel.style.borderLeftColor = "#ffff00";
-                
-                // Mudança de cor gradativa da molécula (Azul -> Amarelo -> Vermelho)
-                molecule.material.color.setHex(0xffff00); 
-                molecule.material.emissive.setHex(0xaa8800);
-
-                if(progress > 0.40 && progress < 0.50) {
-                    uiChem.innerText = "HCHO (Formaldeído)";
-                    uiInfo.innerHTML = "<p>A enzima <strong>Álcool Desidrogenase</strong> converte o Metanol em <span style='color:yellow'>Formaldeído</span>. É altamente reativo.</p>";
-                } else if (progress >= 0.50) {
-                    uiChem.innerText = "HCOOH (Ácido Fórmico)";
-                    molecule.material.color.setHex(0xff0000); 
-                    molecule.material.emissive.setHex(0x550000);
-                    uiInfo.innerHTML = "<p>Rapidamente, o formaldeído vira <strong>Ácido Fórmico</strong>. Ele inibe a respiração celular (mitocôndrias) e causa acidose.</p>";
-                }
-            }
-            // Fase 3: Corrente Sanguínea / Nervo (0.65 a 1.0)
-            else {
-                uiPhase.innerText = "Dano Sistêmico e Ocular";
-                uiPhase.className = "danger";
-                uiPanel.style.borderLeftColor = "#ff0000";
-                
-                uiInfo.innerHTML = "<p>O Ácido Fórmico viaja pelo sangue. Ele tem afinidade específica pelo <strong>Nervo Óptico</strong>, causando edema, desmielinização e cegueira permanente.</p>";
-
-                // Efeito visual no nervo quando a molécula chega perto
-                if (progress > 0.85) {
-                    opticNerve.children.forEach(child => {
-                        child.material.color.setHex(0x330000); // Necrose/Escurecimento
-                    });
-                    
-                    // Shake effect camera
-                    camera.position.x += (Math.random() - 0.5) * 0.1;
-                }
-            }
-        }
-
-        function createLabel(text, x, y, z) {
-            const div = document.createElement('div');
-            div.className = 'label';
-            div.textContent = text;
-            div.style.top = '0px';
-            div.style.left = '0px';
-            document.body.appendChild(div);
-            
-            textLabels.push({
-                element: div,
-                position: new THREE.Vector3(x, y, z)
-            });
-        }
-
-        function updateLabels() {
-            textLabels.forEach(label => {
-                const vector = label.position.clone();
-                vector.project(camera);
-
-                const x = (vector.x * .5 + .5) * window.innerWidth;
-                const y = (-(vector.y * .5) + .5) * window.innerHeight;
-
-                // Esconder se estiver atrás da câmera
-                if(vector.z > 1) {
-                    label.element.style.display = 'none';
-                } else {
-                    label.element.style.display = 'block';
-                    label.element.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
-                }
-            });
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            updateSimulation();
-            updateLabels();
-            
-            // Rotação suave da anatomia para dar tridimensionalidade
-            if(stomach && liver && esophagus) {
-                // scene.rotation.y = Math.sin(Date.now() * 0.0002) * 0.1;
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        // Iniciar
-        init();
-
-    </script>
-</body>
-</html>
+  );
+}
