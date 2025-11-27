@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metabolismo do Metanol 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: white; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            pointer-events: none; /* Let clicks pass through to canvas if needed */
+            border-left: 5px solid #00d2ff;
+            transition: border-color 0.5s;
+        }
+
+        h1 { margin: 0 0 10px 0; font-size: 1.2rem; }
+        p { font-size: 0.9rem; line-height: 1.4; color: #ccc; }
+        
+        .status-box {
+            margin-top: 15px;
+            padding: 10px;
+            background: #333;
+            border-radius: 5px;
+        }
+
+        .chemical { font-weight: bold; font-family: monospace; font-size: 1.1em; color: #fff; }
+        .danger { color: #ff4444; }
+        .safe { color: #00d2ff; }
+        .transform { color: #ffff00; }
+
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        button {
+            background: #00d2ff;
+            border: none;
+            padding: 12px 24px;
+            color: #000;
+            font-weight: bold;
+            font-size: 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.4);
+            transition: all 0.3s;
+        }
+
+        button:hover { transform: scale(1.05); background: #fff; }
+        button:disabled { background: #555; color: #888; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Label styles for 3D objects */
+        .label {
+            position: absolute;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+    </style>
+    <!-- Load Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <h1>Caminho do Metanol</h1>
+        <div id="info-text">
+            <p>O metanol é absorvido rapidamente. O perigo real não é o álcool em si, mas o que o fígado faz com ele.</p>
+        </div>
+        <div class="status-box">
+            <div>Fase: <span id="phase-display" class="safe">Aguardando Ingestão</span></div>
+            <div>Substância Atual: <span id="chem-display" class="chemical">CH₃OH (Metanol)</span></div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button id="start-btn" onclick="startSimulation()">Ingerir Metanol</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        // --- Váriaveis Globais ---
+        let scene, camera, renderer;
+        let stomach, liver, esophagus, opticNerve, molecule;
+        let textLabels = [];
+        let animationActive = false;
+        let progress = 0;
+        let speed = 0.002;
+        let pathCurve;
+        
+        // Elementos UI
+        const uiPhase = document.getElementById('phase-display');
+        const uiChem = document.getElementById('chem-display');
+        const uiInfo = document.getElementById('info-text');
+        const uiPanel = document.getElementById('ui-layer');
+        const startBtn = document.getElementById('start-btn');
+
+        // Configuração Inicial
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // Cena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111111);
+            scene.fog = new THREE.Fog(0x111111, 20, 60);
+
+            // Câmera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 25);
+
+            // Renderizador
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Luzes
+            const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(5, 10, 7);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0xffaa00, 0.5, 20);
+            pointLight.position.set(-2, 2, 2);
+            scene.add(pointLight);
+
+            // Criar Anatomia
+            createAnatomy();
+
+            // Criar Molécula (Metanol)
+            createMolecule();
+
+            // Setup da Animação Loop
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function createAnatomy() {
+            // Material Base
+            const organMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xcc5555, 
+                shininess: 30,
+                flatShading: false
+            });
+
+            // 1. Esôfago (Tubo vertical)
+            const esophagusGeo = new THREE.CylinderGeometry(0.8, 0.8, 8, 16);
+            esophagus = new THREE.Mesh(esophagusGeo, new THREE.MeshPhongMaterial({ color: 0xaa4444 }));
+            esophagus.position.set(-2, 8, 0);
+            scene.add(esophagus);
+            createLabel("Esôfago", -4, 9, 0);
+
+            // 2. Estômago (Forma orgânica composta)
+            stomach = new THREE.Group();
+            
+            const stomachMainGeo = new THREE.SphereGeometry(2.5, 32, 32);
+            // Deformar para parecer um saco
+            stomachMainGeo.scale(1, 1.4, 0.8); 
+            const stomachMain = new THREE.Mesh(stomachMainGeo, new THREE.MeshPhongMaterial({ color: 0xd46a6a }));
+            stomachMain.position.set(0, -1, 0);
+            stomachMain.rotation.z = 0.3;
+            
+            const stomachTopGeo = new THREE.SphereGeometry(1.5, 32, 32);
+            const stomachTop = new THREE.Mesh(stomachTopGeo, new THREE.MeshPhongMaterial({ color: 0xd46a6a }));
+            stomachTop.position.set(0.5, 1.5, 0);
+
+            stomach.add(stomachMain);
+            stomach.add(stomachTop);
+            stomach.position.set(-2.5, 2, 0); // Posicionar abaixo do esôfago
+            scene.add(stomach);
+            createLabel("Estômago", -5, 2, 0);
+
+            // 3. Fígado (Triângulo arredondado grande à direita anatômica)
+            // No 3D, direita anatômica é esquerda da tela se olhando de frente, mas vamos posicionar visualmente à direita do estômago
+            liver = new THREE.Group();
+            const liverGeo = new THREE.DodecahedronGeometry(3.5, 1); // Low poly smooth look
+            // Achatar e esticar
+            liverGeo.scale(1.4, 0.8, 0.6);
+            
+            const liverMesh = new THREE.Mesh(liverGeo, new THREE.MeshStandardMaterial({ 
+                color: 0x8b0000, // Vermelho escuro/marrom
+                roughness: 0.4 
+            }));
+            
+            liver.add(liverMesh);
+            liver.position.set(3, 4, 1);
+            scene.add(liver);
+            createLabel("Fígado (Metabolismo)", 3, 7, 1);
+
+            // 4. Conexão Estômago -> Fígado (Veia Porta esquemática)
+            const veinGeo = new THREE.TubeGeometry(
+                new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(-1.5, 2, 0),
+                    new THREE.Vector3(0, 3, 0),
+                    new THREE.Vector3(1.5, 4, 0.5)
+                ]), 20, 0.3, 8, false
+            );
+            const vein = new THREE.Mesh(veinGeo, new THREE.MeshPhongMaterial({ color: 0x3300aa })); // Veia azulada
+            scene.add(vein);
+
+            // 5. Nervo Óptico (O alvo do dano) - No topo da tela, simbólico
+            opticNerve = new THREE.Group();
+            const nerveGeo = new THREE.CylinderGeometry(0.2, 0.2, 8, 8);
+            nerveGeo.rotateZ(Math.PI / 2);
+            
+            // Dois olhos simbólicos
+            const eyeGeo = new THREE.SphereGeometry(1, 16, 16);
+            const eyeMat = new THREE.MeshPhongMaterial({ color: 0xffffff });
+            const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+            const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+            eyeL.position.set(-6, 0, 0);
+            eyeR.position.set(6, 0, 0);
+
+            // Nervos conectando
+            const nerveL = new THREE.Mesh(nerveGeo, new THREE.MeshPhongMaterial({ color: 0xdddddd }));
+            nerveL.position.set(-3, 0, -1);
+            nerveL.rotation.z = -0.2;
+            
+            const nerveR = new THREE.Mesh(nerveGeo, new THREE.MeshPhongMaterial({ color: 0xdddddd }));
+            nerveR.position.set(3, 0, -1);
+            nerveR.rotation.z = 0.2;
+
+            opticNerve.add(eyeL);
+            opticNerve.add(eyeR);
+            opticNerve.add(nerveL);
+            opticNerve.add(nerveR);
+            
+            opticNerve.position.set(0, 12, -2); // Bem acima
+            scene.add(opticNerve);
+            createLabel("Sistema Nervoso / Olhos", 0, 14, -2);
+        }
+
+        function createMolecule() {
+            // Molécula de Metanol (Simbolizada por uma esfera brilhante)
+            const geometry = new THREE.SphereGeometry(0.4, 16, 16);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0x00ffff, // Começa ciano (álcool)
+                emissive: 0x004444
+            });
+            molecule = new THREE.Mesh(geometry, material);
+            scene.add(molecule);
+            
+            // Definir o caminho (Path)
+            // 1. Boca/Esofago -> 2. Estômago -> 3. Figado -> 4. Nervo
+            pathCurve = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(-2, 13, 0), // Entrada
+                new THREE.Vector3(-2, 8, 0),  // Esôfago
+                new THREE.Vector3(-2.5, 2, 0), // Estômago
+                new THREE.Vector3(0, 3, 0),    // Transição
+                new THREE.Vector3(3, 4, 1),    // Fígado (Centro)
+                new THREE.Vector3(3, 4, 1),    // Pausa no fígado (ponto duplicado para desacelerar curvas)
+                new THREE.Vector3(0, 8, 0),    // Subindo pela corrente sanguinea
+                new THREE.Vector3(0, 12, -1)   // Nervo Óptico
+            ]);
+
+            resetMolecule();
+        }
+
+        function resetMolecule() {
+            progress = 0;
+            const startPos = pathCurve.getPoint(0);
+            molecule.position.copy(startPos);
+            molecule.material.color.setHex(0x00ffff);
+            molecule.material.emissive.setHex(0x004444);
+            molecule.visible = false;
+            
+            // Reset nerves
+            opticNerve.children.forEach(child => {
+                if(child.geometry.type === 'CylinderGeometry') child.material.color.setHex(0xdddddd); // volta a ser branco
+                if(child.geometry.type === 'SphereGeometry') child.material.color.setHex(0xffffff);
+            });
+
+            // Reset UI
+            uiPhase.innerText = "Aguardando Ingestão";
+            uiPhase.className = "safe";
+            uiChem.innerText = "CH₃OH (Metanol)";
+            uiPanel.style.borderLeftColor = "#00d2ff";
+            uiInfo.innerHTML = "<p>O metanol é absorvido rapidamente. O perigo real não é o álcool em si, mas o que o fígado faz com ele.</p>";
+            startBtn.disabled = false;
+            startBtn.innerText = "Ingerir Metanol";
+        }
+
+        function startSimulation() {
+            if(animationActive) return;
+            resetMolecule();
+            molecule.visible = true;
+            animationActive = true;
+            startBtn.disabled = true;
+            startBtn.innerText = "Simulando...";
+        }
+
+        function updateSimulation() {
+            if (!animationActive) return;
+
+            progress += speed;
+            
+            if (progress >= 1) {
+                progress = 1;
+                animationActive = false;
+                startBtn.disabled = false;
+                startBtn.innerText = "Reiniciar Simulação";
+                return;
+            }
+
+            // Mover molécula
+            const position = pathCurve.getPoint(progress);
+            molecule.position.copy(position);
+
+            // --- Lógica de Fases Baseada no Progresso (0.0 a 1.0) ---
+
+            // Fase 1: Estômago (0.0 a 0.35)
+            if (progress < 0.35) {
+                uiPhase.innerText = "Absorção Gástrica";
+                uiPhase.className = "safe";
+                uiChem.innerText = "CH₃OH (Metanol)";
+                uiPanel.style.borderLeftColor = "#00d2ff";
+                molecule.material.color.setHex(0x00ffff);
+            } 
+            // Fase 2: Fígado (0.35 a 0.65) - A Biotransformação
+            else if (progress >= 0.35 && progress < 0.65) {
+                uiPhase.innerText = "Metabolização Hepática";
+                uiPhase.className = "transform";
+                uiPanel.style.borderLeftColor = "#ffff00";
+                
+                // Mudança de cor gradativa da molécula (Azul -> Amarelo -> Vermelho)
+                molecule.material.color.setHex(0xffff00); 
+                molecule.material.emissive.setHex(0xaa8800);
+
+                if(progress > 0.40 && progress < 0.50) {
+                    uiChem.innerText = "HCHO (Formaldeído)";
+                    uiInfo.innerHTML = "<p>A enzima <strong>Álcool Desidrogenase</strong> converte o Metanol em <span style='color:yellow'>Formaldeído</span>. É altamente reativo.</p>";
+                } else if (progress >= 0.50) {
+                    uiChem.innerText = "HCOOH (Ácido Fórmico)";
+                    molecule.material.color.setHex(0xff0000); 
+                    molecule.material.emissive.setHex(0x550000);
+                    uiInfo.innerHTML = "<p>Rapidamente, o formaldeído vira <strong>Ácido Fórmico</strong>. Ele inibe a respiração celular (mitocôndrias) e causa acidose.</p>";
+                }
+            }
+            // Fase 3: Corrente Sanguínea / Nervo (0.65 a 1.0)
+            else {
+                uiPhase.innerText = "Dano Sistêmico e Ocular";
+                uiPhase.className = "danger";
+                uiPanel.style.borderLeftColor = "#ff0000";
+                
+                uiInfo.innerHTML = "<p>O Ácido Fórmico viaja pelo sangue. Ele tem afinidade específica pelo <strong>Nervo Óptico</strong>, causando edema, desmielinização e cegueira permanente.</p>";
+
+                // Efeito visual no nervo quando a molécula chega perto
+                if (progress > 0.85) {
+                    opticNerve.children.forEach(child => {
+                        child.material.color.setHex(0x330000); // Necrose/Escurecimento
+                    });
+                    
+                    // Shake effect camera
+                    camera.position.x += (Math.random() - 0.5) * 0.1;
+                }
+            }
+        }
+
+        function createLabel(text, x, y, z) {
+            const div = document.createElement('div');
+            div.className = 'label';
+            div.textContent = text;
+            div.style.top = '0px';
+            div.style.left = '0px';
+            document.body.appendChild(div);
+            
+            textLabels.push({
+                element: div,
+                position: new THREE.Vector3(x, y, z)
+            });
+        }
+
+        function updateLabels() {
+            textLabels.forEach(label => {
+                const vector = label.position.clone();
+                vector.project(camera);
+
+                const x = (vector.x * .5 + .5) * window.innerWidth;
+                const y = (-(vector.y * .5) + .5) * window.innerHeight;
+
+                // Esconder se estiver atrás da câmera
+                if(vector.z > 1) {
+                    label.element.style.display = 'none';
+                } else {
+                    label.element.style.display = 'block';
+                    label.element.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+                }
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateSimulation();
+            updateLabels();
+            
+            // Rotação suave da anatomia para dar tridimensionalidade
+            if(stomach && liver && esophagus) {
+                // scene.rotation.y = Math.sin(Date.now() * 0.0002) * 0.1;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Iniciar
+        init();
+
+    </script>
+</body>
+</html>
