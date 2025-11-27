@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metabolismo do Metanol 3D - Leve</title>
+    <title>Metabolismo do Metanol 3D - Transparente</title>
     <style>
         body { 
             margin: 0; 
@@ -92,7 +92,7 @@
     <div id="ui-layer">
         <h1>Caminho do Metanol</h1>
         <div id="info-text">
-            <p>Bem-vindo à simulação. O metanol é um álcool industrial tóxico. Clique em "Iniciar Ingestão" para ver o trajeto.</p>
+            <p>Bem-vindo à simulação. Os órgãos agora são transparentes para visualizar o trajeto interno.</p>
         </div>
         <div class="status-box">
             <div class="status-label">Fase Atual</div>
@@ -201,6 +201,8 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limita pixel ratio para performance
+            // Habilitar transparência no renderizador, se necessário (geralmente automático, mas bom garantir)
+            renderer.setClearColor(0xf0f4f8, 1); 
             container.appendChild(renderer.domElement);
 
             // Luzes
@@ -225,20 +227,33 @@
         }
 
         function createAnatomy() {
-            // MATERIAIS OTIMIZADOS E MAIS VIBRANTES (MeshPhongMaterial)
-            // Cores mais saturadas, menos cálculo de física de luz complexa
+            // --- MATERIAIS TRANSPARENTES ---
             
+            // Material para Estômago e Esôfago (Semi-transparente)
             const organMat = new THREE.MeshPhongMaterial({ 
                 color: 0xff6b6b, // Vermelho/Rosa vibrante
                 shininess: 40,
-                specular: 0x222222
+                specular: 0x222222,
+                transparent: true, // Habilita transparência
+                opacity: 0.5       // 50% visível
             });
             
+            // Material para Fígado (Um pouco mais denso)
             const liverMat = new THREE.MeshPhongMaterial({ 
                 color: 0x8b0000, // Vermelho escuro forte
                 shininess: 60,
-                specular: 0x444444
+                specular: 0x444444,
+                transparent: true,
+                opacity: 0.6       // 60% visível
             });
+
+            // Material para Nervos (Bem transparente para ver a chegada)
+            const nerveMat = new THREE.MeshPhongMaterial({ 
+                color: 0xcccccc, 
+                transparent: true,
+                opacity: 0.4
+            });
+
 
             // Geometria reduzida para performance (segundos parâmetros reduzidos)
 
@@ -278,7 +293,7 @@
             scene.add(liver);
             createLabel("Fígado", 3, 7.5, 1);
 
-            // 4. Veia (Azul vibrante)
+            // 4. Veia (Azul vibrante e transparente)
             const veinGeo = new THREE.TubeGeometry(
                 new THREE.CatmullRomCurve3([
                     new THREE.Vector3(-1.5, 2, 0),
@@ -286,7 +301,11 @@
                     new THREE.Vector3(1.5, 4, 0.5)
                 ]), 12, 0.3, 8, false // Segmentos reduzidos
             );
-            const vein = new THREE.Mesh(veinGeo, new THREE.MeshPhongMaterial({ color: 0x3366ff }));
+            const vein = new THREE.Mesh(veinGeo, new THREE.MeshPhongMaterial({ 
+                color: 0x3366ff,
+                transparent: true,
+                opacity: 0.4
+            }));
             scene.add(vein);
 
             // 5. Nervo Óptico
@@ -295,6 +314,7 @@
             nerveGeo.rotateZ(Math.PI / 2);
             
             const eyeGeo = new THREE.SphereGeometry(1, 24, 24);
+            // Olhos mantêm-se opacos para contraste
             const eyeMat = new THREE.MeshPhongMaterial({ color: 0xffffff }); // Branco puro
             const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
             const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
@@ -311,11 +331,12 @@
             eyeL.add(pupilL);
             eyeR.add(pupilR);
 
-            const nerveL = new THREE.Mesh(nerveGeo, new THREE.MeshPhongMaterial({ color: 0xcccccc }));
+            // Usando o material de nervo transparente
+            const nerveL = new THREE.Mesh(nerveGeo, nerveMat);
             nerveL.position.set(-3, 0, -1);
             nerveL.rotation.z = -0.2;
             
-            const nerveR = new THREE.Mesh(nerveGeo, new THREE.MeshPhongMaterial({ color: 0xcccccc }));
+            const nerveR = new THREE.Mesh(nerveGeo, nerveMat);
             nerveR.position.set(3, 0, -1);
             nerveR.rotation.z = 0.2;
 
@@ -330,13 +351,14 @@
         }
 
         function createMolecule() {
-            // Molécula (Esfera brilhante)
+            // Molécula (Esfera brilhante - MANTIDA OPACA para destaque)
             const geometry = new THREE.SphereGeometry(0.6, 24, 24);
             const material = new THREE.MeshPhongMaterial({ 
                 color: 0x00d2ff, 
                 shininess: 100,
                 emissive: 0x004455,
-                emissiveIntensity: 0.5
+                emissiveIntensity: 0.5,
+                // Sem transparência aqui
             });
             molecule = new THREE.Mesh(geometry, material);
             scene.add(molecule);
@@ -385,7 +407,6 @@
                 targetProgress = stages[currentStageIndex].target;
                 updateUI(currentStageIndex);
 
-                // --- CORREÇÃO AQUI ---
                 // Se a posição de destino é diferente (há movimento físico), desabilita o botão e deixa o loop 'animate' lidar com isso.
                 if (Math.abs(currentProgress - targetProgress) > 0.001) {
                     nextBtn.disabled = true;
@@ -415,7 +436,11 @@
             
             if (opticNerve) {
                 opticNerve.children.forEach(child => {
-                    if(child.geometry.type === 'CylinderGeometry') child.material.color.setHex(0xcccccc);
+                    // Verifica se é a geometria do nervo (cilindro) para resetar a cor
+                    if(child.geometry.type === 'CylinderGeometry') {
+                         child.material.color.setHex(0xcccccc);
+                    }
+                    // Pupilas resetam
                     if(child.children.length > 0) child.children[0].material.color.setHex(0x000000); 
                 });
             }
@@ -487,7 +512,9 @@
             }
             else if (stage.specialEffect === 'damage') {
                 opticNerve.children.forEach(child => {
+                    // Nervos ficam escuros (cilindros)
                     if(child.geometry.type === 'CylinderGeometry') child.material.color.setHex(0x333333);
+                    // Pupilas brancas
                     if(child.children.length > 0) child.children[0].material.color.setHex(0xffffff);
                 });
             }
